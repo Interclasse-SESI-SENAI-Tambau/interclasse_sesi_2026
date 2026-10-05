@@ -1,0 +1,138 @@
+-- ==================================================================
+-- INTERCLASSE SESI - Script de criacao do banco (fiel a estrutura
+-- fornecida). Use apenas se o banco ainda nao existir no seu XAMPP.
+-- Nenhuma tabela, coluna ou relacionamento foi alterado ou inventado.
+-- ==================================================================
+
+CREATE DATABASE IF NOT EXISTS INTERCLASSE_SESI CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE INTERCLASSE_SESI;
+
+CREATE TABLE IF NOT EXISTS USUARIOS (
+    USU_ID INT AUTO_INCREMENT PRIMARY KEY,
+    USU_NOME VARCHAR(100) NOT NULL,
+    USU_EMAIL VARCHAR(150) NOT NULL UNIQUE,
+    USU_SENHA VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS MODALIDADES (
+    MOD_ID INT AUTO_INCREMENT PRIMARY KEY,
+    MOD_NOME VARCHAR(100) NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS TURMAS (
+    TUR_ID INT AUTO_INCREMENT PRIMARY KEY,
+    TUR_SERIE VARCHAR(30) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS TIMES (
+    TIM_ID INT AUTO_INCREMENT PRIMARY KEY,
+    FK_TUR_ID INT NOT NULL,
+    FK_MOD_ID INT NOT NULL,
+
+    UNIQUE (FK_TUR_ID, FK_MOD_ID),
+
+    FOREIGN KEY (FK_TUR_ID)
+        REFERENCES TURMAS (TUR_ID)
+        ON DELETE RESTRICT,
+
+    FOREIGN KEY (FK_MOD_ID)
+        REFERENCES MODALIDADES (MOD_ID)
+        ON DELETE RESTRICT
+);
+
+CREATE TABLE IF NOT EXISTS FASES (
+    FAS_ID INT AUTO_INCREMENT PRIMARY KEY,
+    FAS_NOME VARCHAR(50) NOT NULL UNIQUE,
+    FAS_ORDEM INT UNSIGNED NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS CHAVES (
+    CHA_ID INT AUTO_INCREMENT PRIMARY KEY,
+    CHA_NOME VARCHAR(100) NOT NULL,
+    FK_MOD_ID INT NOT NULL,
+
+    FOREIGN KEY (FK_MOD_ID)
+        REFERENCES MODALIDADES (MOD_ID)
+        ON DELETE RESTRICT
+);
+
+CREATE TABLE IF NOT EXISTS CONFRONTOS (
+    CON_ID INT AUTO_INCREMENT PRIMARY KEY,
+
+    FK_CHA_ID INT NOT NULL,
+    FK_FAS_ID INT NOT NULL,
+
+    -- NULL enquanto o time ainda nao foi definido (aguardando vencedor da fase anterior)
+    FK_TIM_1_ID INT NULL,
+    FK_TIM_2_ID INT NULL,
+
+    -- Confrontos da fase anterior cujos vencedores avancam para este confronto
+    -- (preenchido automaticamente pela progressao de chaveamento)
+    FK_CON_ORIGEM_1_ID INT NULL,
+    FK_CON_ORIGEM_2_ID INT NULL,
+
+    CON_DATA DATE NULL,
+    CON_HORA TIME NULL,
+
+    CHECK (FK_TIM_1_ID <> FK_TIM_2_ID),
+
+    FOREIGN KEY (FK_CHA_ID)
+        REFERENCES CHAVES (CHA_ID)
+        ON DELETE RESTRICT,
+
+    FOREIGN KEY (FK_FAS_ID)
+        REFERENCES FASES (FAS_ID)
+        ON DELETE RESTRICT,
+
+    FOREIGN KEY (FK_TIM_1_ID)
+        REFERENCES TIMES (TIM_ID)
+        ON DELETE RESTRICT,
+
+    FOREIGN KEY (FK_TIM_2_ID)
+        REFERENCES TIMES (TIM_ID)
+        ON DELETE RESTRICT,
+
+    FOREIGN KEY (FK_CON_ORIGEM_1_ID)
+        REFERENCES CONFRONTOS (CON_ID)
+        ON DELETE SET NULL,
+
+    FOREIGN KEY (FK_CON_ORIGEM_2_ID)
+        REFERENCES CONFRONTOS (CON_ID)
+        ON DELETE SET NULL,
+
+    UNIQUE KEY UQ_CONFRONTOS_ORIGEM (FK_CON_ORIGEM_1_ID, FK_CON_ORIGEM_2_ID)
+);
+
+CREATE TABLE IF NOT EXISTS RESULTADOS (
+    RES_ID INT AUTO_INCREMENT PRIMARY KEY,
+
+    FK_CON_ID INT NOT NULL UNIQUE,
+
+    RES_PONTUACAO_TIME_1 INT NOT NULL,
+    RES_PONTUACAO_TIME_2 INT NOT NULL,
+
+    FK_TIM_VENCEDOR_ID INT NOT NULL,
+
+    FOREIGN KEY (FK_CON_ID)
+        REFERENCES CONFRONTOS (CON_ID)
+        ON DELETE RESTRICT,
+
+    FOREIGN KEY (FK_TIM_VENCEDOR_ID)
+        REFERENCES TIMES (TIM_ID)
+        ON DELETE RESTRICT
+);
+
+-- Fases iniciais (conforme especificado)
+INSERT INTO FASES (FAS_NOME, FAS_ORDEM) VALUES
+('Primeira fase', 1),
+('Oitavas de final', 2),
+('Quartas de final', 3),
+('Semifinal', 4),
+('Final', 5)
+ON DUPLICATE KEY UPDATE FAS_NOME = FAS_NOME;
+
+-- Usuario administrador inicial: login "admin" / senha "admin123"
+-- (hash gerado com password_hash, compativel com password_verify em PHP)
+INSERT INTO USUARIOS (USU_NOME, USU_EMAIL, USU_SENHA) VALUES
+('admin', 'admin@interclassesesi.com.br', '$2y$10$9.ivONl1eJ6xkoUlK02zYO05TKAhmcH94zCkH0BH83OzwwPMoQ4jy')
+ON DUPLICATE KEY UPDATE USU_NOME = USU_NOME;
